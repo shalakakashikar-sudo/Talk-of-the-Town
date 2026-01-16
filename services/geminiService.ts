@@ -2,19 +2,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GameMode, GameStats, GameTurnResponse } from "../types";
 
-const API_KEY = process.env.API_KEY;
-
 export class GeminiService {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenAI | null = null;
   private modelName = 'gemini-3-flash-preview';
 
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: API_KEY! });
+  private getAI(): GoogleGenAI {
+    if (!this.ai) {
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) {
+        // Fallback or re-throw error if API key is missing during execution
+        throw new Error("API_KEY is not defined. Ensure it is set in your environment variables.");
+      }
+      this.ai = new GoogleGenAI({ apiKey });
+    }
+    return this.ai;
   }
 
   async generateCityImage(): Promise<string | null> {
     try {
-      const response = await this.ai.models.generateContent({
+      const aiClient = this.getAI();
+      const response = await aiClient.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
           parts: [{ text: "A breathtaking, futuristic, cinematic metropolis called Polyglot City. The city is a masterpiece of global architectures—Victorian London bridges meeting neon-drenched futuristic Tokyo skyscrapers. Signs in multiple languages glow softly in the evening mist. Wide shot, ultra-detailed, vibrant lighting." }]
@@ -82,7 +89,8 @@ export class GeminiService {
       The "tutorNote" should be a linguistic goldmine for the learner.
     `;
 
-    const response = await this.ai.models.generateContent({
+    const aiClient = this.getAI();
+    const response = await aiClient.models.generateContent({
       model: this.modelName,
       contents: [
         ...history.slice(-12).map(h => ({ parts: [{ text: h.content }] })),
