@@ -139,10 +139,10 @@ const App: React.FC = () => {
 
         <div className="max-w-4xl w-full glass rounded-[3rem] shadow-2xl p-8 md:p-14 border border-white/10 text-center relative z-10 animate-fade-in">
           <div className="mb-14">
-            <h1 className="text-6xl md:text-8xl font-black text-white mb-6 tracking-tighter uppercase italic leading-none">
+            <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter uppercase italic leading-none">
               Talk of the <span className="text-indigo-400">Town</span>
             </h1>
-            <p className="text-indigo-100 text-xl md:text-2xl font-light tracking-wide max-w-2xl mx-auto opacity-90">
+            <p className="text-indigo-100 text-lg md:text-xl font-light tracking-wide max-w-2xl mx-auto opacity-90">
               Your immersive English journey starts in Polyglot City.
             </p>
           </div>
@@ -171,7 +171,7 @@ const App: React.FC = () => {
             <p className="text-xs text-indigo-400 font-bold uppercase tracking-[0.3em] mb-6">Choose your destiny</p>
             <div className="group relative">
                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-               <div className="relative text-xs text-gray-400 font-bold uppercase tracking-widest bg-black/60 px-8 py-3 rounded-full border border-white/10 flex items-center space-x-2">
+               <div className="relative text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest bg-black/60 px-8 py-3 rounded-full border border-white/10 flex items-center space-x-2">
                  <span>Created by</span>
                  <span className="text-white font-black">Shalaka Kashikar</span>
                </div>
@@ -188,27 +188,27 @@ const App: React.FC = () => {
 
       {showLevelUp && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-          <div className="bg-amber-500 text-gray-950 px-16 py-10 rounded-full font-black text-6xl shadow-[0_0_100px_rgba(245,158,11,0.7)] animate-bounce border-8 border-white uppercase italic">
+          <div className="bg-amber-500 text-gray-950 px-12 py-8 rounded-full font-black text-4xl md:text-5xl shadow-[0_0_100px_rgba(245,158,11,0.7)] animate-bounce border-8 border-white uppercase italic">
             LEVEL UP! 🚀
           </div>
         </div>
       )}
 
       <main className="flex-1 overflow-y-auto p-4 md:p-12 scroll-smooth bg-[radial-gradient(circle_at_top,rgba(30,30,80,0.2)_0%,rgba(10,10,15,1)_70%)]">
-        <div className="max-w-4xl mx-auto space-y-14 pb-12">
+        <div className="max-w-4xl mx-auto space-y-12 pb-12">
           {messages.map((msg, index) => (
             <div 
               key={index} 
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start animate-fade-in'}`}
             >
               <div 
-                className={`max-w-[92%] md:max-w-[85%] rounded-[2.5rem] p-7 md:p-12 shadow-2xl transition-all ${
+                className={`max-w-[92%] md:max-w-[85%] rounded-[2.5rem] p-6 md:p-10 shadow-2xl transition-all ${
                   msg.role === 'user' 
-                    ? 'bg-indigo-600 text-white rounded-tr-none border-b-[10px] border-indigo-800' 
-                    : 'bg-gray-800/60 glass text-gray-100 border border-white/5 rounded-tl-none border-b-[10px] border-gray-900/50'
+                    ? 'bg-indigo-600 text-white rounded-tr-none border-b-[8px] border-indigo-800' 
+                    : 'bg-gray-800/60 glass text-gray-100 border border-white/5 rounded-tl-none border-b-[8px] border-gray-900/50'
                 }`}
               >
-                <div className="prose prose-invert max-w-none whitespace-pre-wrap leading-relaxed text-lg md:text-2xl font-medium tracking-tight">
+                <div className="prose prose-invert max-w-none whitespace-pre-wrap leading-relaxed text-base md:text-xl font-medium tracking-tight">
                   {msg.content}
                 </div>
                 {msg.tutorNote && <TutorNote note={msg.tutorNote} />}
@@ -217,20 +217,20 @@ const App: React.FC = () => {
           ))}
           
           {isTyping && (
-            <div className="flex items-center space-x-4 text-indigo-400 bg-indigo-950/30 px-8 py-4 rounded-full w-fit border border-indigo-500/20 shadow-xl backdrop-blur-sm">
+            <div className="flex items-center space-x-4 text-indigo-400 bg-indigo-950/30 px-6 py-3 rounded-full w-fit border border-indigo-500/20 shadow-xl backdrop-blur-sm">
               <div className="flex space-x-2">
-                <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
-                <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }}></div>
+                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
+                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }}></div>
               </div>
-              <span className="text-sm font-black uppercase tracking-[0.3em]">Processing Response</span>
+              <span className="text-xs font-black uppercase tracking-[0.3em]">Processing Response</span>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
       </main>
 
-      <footer className="bg-gray-950 border-t border-white/5 p-6 md:p-10 relative z-20 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+      <footer className="bg-gray-950 border-t border-white/5 p-4 md:p-8 relative z-20 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-5">
             <input
@@ -239,23 +239,23 @@ const App: React.FC = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Type your dialogue..."
-              className="flex-1 bg-gray-900/80 border-2 border-white/10 rounded-[1.5rem] px-10 py-6 focus:outline-none focus:border-indigo-500 text-white text-2xl transition-all placeholder-gray-700 font-medium"
+              className="flex-1 bg-gray-900/80 border-2 border-white/10 rounded-[1.2rem] px-8 py-4 focus:outline-none focus:border-indigo-500 text-white text-xl transition-all placeholder-gray-700 font-medium"
               disabled={isTyping}
             />
             <button
               type="submit"
               disabled={isTyping || !inputValue.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black py-6 px-14 rounded-[1.5rem] transition-all shadow-indigo-900/20 active:scale-95 uppercase tracking-tighter text-xl border-b-4 border-indigo-800"
+              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black py-4 px-12 rounded-[1.2rem] transition-all shadow-indigo-900/20 active:scale-95 uppercase tracking-tighter text-lg border-b-4 border-indigo-800"
             >
               Speak
             </button>
           </form>
           <div className="mt-6 flex flex-wrap justify-between items-center gap-4 px-4">
-             <div className="flex items-center space-x-5 text-[12px] text-gray-500 uppercase font-black tracking-[0.2em]">
-                <span className="bg-gray-900 px-4 py-1.5 rounded-lg border border-white/5 shadow-sm">Level {stats.level} Challenge</span>
+             <div className="flex items-center space-x-5 text-[10px] text-gray-500 uppercase font-black tracking-[0.2em]">
+                <span className="bg-gray-900 px-3 py-1 rounded border border-white/5 shadow-sm">Level {stats.level} Challenge</span>
                 <span className="opacity-40 hidden sm:block">Press Enter to Communicate</span>
              </div>
-             <div className="text-[12px] text-gray-500 font-black uppercase tracking-[0.2em] opacity-80 group">
+             <div className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] opacity-80 group">
                 Created by <span className="text-gray-300 group-hover:text-indigo-400 transition-colors">Shalaka Kashikar</span>
              </div>
           </div>
