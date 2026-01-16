@@ -3,31 +3,28 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { GameMode, GameStats, GameTurnResponse } from "../types";
 
 export class GeminiService {
-  private ai: GoogleGenAI | null = null;
   private modelName = 'gemini-3-flash-preview';
 
   private getAI(): GoogleGenAI {
-    if (!this.ai) {
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) {
-        // Fallback or re-throw error if API key is missing during execution
-        throw new Error("API_KEY is not defined. Ensure it is set in your environment variables.");
-      }
-      this.ai = new GoogleGenAI({ apiKey });
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("API_KEY is missing. Check your Vercel Environment Variables.");
     }
-    return this.ai;
+    return new GoogleGenAI({ apiKey });
   }
 
   async generateCityImage(): Promise<string | null> {
     try {
-      const aiClient = this.getAI();
-      const response = await aiClient.models.generateContent({
+      const ai = this.getAI();
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
-        contents: {
+        contents: [{
           parts: [{ text: "A breathtaking, futuristic, cinematic metropolis called Polyglot City. The city is a masterpiece of global architectures—Victorian London bridges meeting neon-drenched futuristic Tokyo skyscrapers. Signs in multiple languages glow softly in the evening mist. Wide shot, ultra-detailed, vibrant lighting." }]
-        }
+        }]
       });
-      for (const part of response.candidates[0].content.parts) {
+      
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      for (const part of parts) {
         if (part.inlineData) {
           return `data:image/png;base64,${part.inlineData.data}`;
         }
@@ -44,8 +41,6 @@ export class GeminiService {
       Mode: ${mode}.
       Initial State: Level 1, Confidence 0%.
       Objective: Provide an opening scenario where the player is an absolute beginner in this specific context. Describe the atmospheric surroundings vividly and present a clear initial challenge.
-      
-      Response must be in JSON format matching the schema.
     `;
 
     return this.generateTurn(prompt, mode);
@@ -67,10 +62,10 @@ export class GeminiService {
       Location: ${stats.location}
       Mode: ${mode}
 
-      Rules for Slower Progression:
-      1. Confidence Points: Award small increments (+2 to +5) for good English. Deduct (-5 to -10) for significant mistakes.
-      2. Level Completion: ONLY set "isLevelComplete" to true if the player has reached 100% confidence AND has completed at least 4-5 meaningful dialogue exchanges in the current scenario.
-      3. Feedback: Provide a detailed "Tutor Note" correcting grammar, word choice, and social appropriateness.
+      Rules for Progression:
+      1. Confidence: Award small increments (+2 to +5) for good English. Deduct (-5 to -10) for significant mistakes.
+      2. Level Completion: Set "isLevelComplete" to true ONLY if confidence reaches 100% and the current task is fulfilled.
+      3. Feedback: Provide a detailed "Tutor Note" correcting grammar and register.
     `;
 
     return this.generateTurn(prompt, mode, history);
@@ -83,37 +78,36 @@ export class GeminiService {
   ): Promise<GameTurnResponse> {
     const systemInstruction = `
       You are "Talk of the Town," a state-of-the-art English Immersion Game Engine.
-      Your goal is to guide the user to fluency through a deliberate, slow-burn RPG experience.
-      
-      Always respond in JSON. Ensure the "narrative" is descriptive and immersive.
-      The "tutorNote" should be a linguistic goldmine for the learner.
+      Always respond in JSON. Ensure the "narrative" is descriptive.
+      The "tutorNote" should be linguistic feedback.
     `;
 
-    const aiClient = this.getAI();
-    const response = await aiClient.models.generateContent({
+    const ai = this.getAI();
+
+    // Correctly map history roles for Gemini API (user -> user, assistant -> model)
+    const formattedContents = history.slice(-10).map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
+
+    // Add the current prompt
+    formattedContents.push({
+      role: 'user',
+      parts: [{ text: prompt }]
+    });
+
+    const response = await ai.models.generateContent({
       model: this.modelName,
-      contents: [
-        ...history.slice(-12).map(h => ({ parts: [{ text: h.content }] })),
-        { parts: [{ text: prompt }] }
-      ],
+      contents: formattedContents,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            narrative: {
-              type: Type.STRING,
-              description: "The cinematic narrative and NPC dialogue."
-            },
-            tutorNote: {
-              type: Type.STRING,
-              description: "Grammar, vocabulary, and register feedback."
-            },
-            isLevelComplete: {
-              type: Type.BOOLEAN,
-              description: "Whether the player is ready for the next level."
-            },
+            narrative: { type: Type.STRING },
+            tutorNote: { type: Type.STRING },
+            isLevelComplete: { type: Type.BOOLEAN },
             statsUpdate: {
               type: Type.OBJECT,
               properties: {
@@ -130,8 +124,12 @@ export class GeminiService {
       }
     });
 
-    const result = JSON.parse(response.text);
-    return result as GameTurnResponse;
+    try {
+      return JSON.parse(response.text || '{}') as GameTurnResponse;
+    } catch (err) {
+      console.error("JSON Parse Error:", response.text);
+      throw new Error("Invalid AI response format");
+    }
   }
 }
 
