@@ -1,0 +1,7 @@
+{
+  "name": "Talk of the Town",
+  "description": "An immersive English learning simulator game where you navigate through different life scenarios in Polyglot City, improving your language skills with real-time feedback.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
