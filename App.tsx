@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [cityImageUrl, setCityImageUrl] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
@@ -42,6 +43,7 @@ const App: React.FC = () => {
   }, [messages, isTyping]);
 
   const selectMode = async (mode: GameMode) => {
+    setError(null);
     setStats({ ...INITIAL_STATS, mode });
     setMessages([]);
     setIsTyping(true);
@@ -52,8 +54,9 @@ const App: React.FC = () => {
         content: startData.narrative 
       }]);
       updateStats(startData.statsUpdate, false);
-    } catch (error) {
-      console.error("Failed to start game:", error);
+    } catch (err: any) {
+      console.error("Failed to start game:", err);
+      setError(err.message || "Could not connect to the city. Please try again.");
     } finally {
       setIsTyping(false);
     }
@@ -89,12 +92,14 @@ const App: React.FC = () => {
   const exitToMenu = () => {
     setStats({ ...INITIAL_STATS });
     setMessages([]);
+    setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || !stats.mode || isTyping) return;
 
+    setError(null);
     const userText = inputValue.trim();
     setInputValue('');
     setMessages(prev => [...prev, { role: 'user', content: userText }]);
@@ -114,8 +119,9 @@ const App: React.FC = () => {
         tutorNote: response.tutorNote
       }]);
       updateStats(response.statsUpdate, response.isLevelComplete);
-    } catch (error) {
-      console.error("Turn processing failed:", error);
+    } catch (err: any) {
+      console.error("Turn processing failed:", err);
+      setError(err.message || "Something went wrong in the city. Try again.");
     } finally {
       setIsTyping(false);
     }
@@ -166,6 +172,12 @@ const App: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {error && (
+            <div className="mt-8 p-4 bg-rose-950/50 border border-rose-500/30 rounded-xl text-rose-300 text-sm animate-fade-in">
+              {error}
+            </div>
+          )}
 
           <div className="mt-14 pt-10 border-t border-white/10 flex flex-col items-center">
             <p className="text-xs text-indigo-400 font-bold uppercase tracking-[0.3em] mb-6">Choose your destiny</p>
@@ -226,6 +238,16 @@ const App: React.FC = () => {
               <span className="text-xs font-black uppercase tracking-[0.3em]">Processing Response</span>
             </div>
           )}
+
+          {error && (
+            <div className="bg-rose-950/30 border border-rose-500/20 p-6 rounded-2xl text-rose-300 text-sm flex items-center space-x-4 animate-fade-in">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+          
           <div ref={messagesEndRef} />
         </div>
       </main>

@@ -71,6 +71,11 @@ export class GeminiService {
     return this.generateTurn(prompt, mode, history);
   }
 
+  private cleanJsonResponse(text: string): string {
+    // Remove markdown code blocks if the model included them
+    return text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+  }
+
   private async generateTurn(
     prompt: string,
     mode: GameMode,
@@ -84,51 +89,49 @@ export class GeminiService {
 
     const ai = this.getAI();
 
-    // Correctly map history roles for Gemini API (user -> user, assistant -> model)
-    const formattedContents = history.slice(-10).map(msg => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
+    // To prevent role-alternation errors (assistant must be model, must start with user),
+    // we consolidate history into the prompt text for a single-turn structured request.
+    const historyText = history.length > 0 
+      ? "CONVERSATION HISTORY:\n" + history.map(h => `${h.role === 'assistant' ? 'NPC' : 'Player'}: ${h.content}`).join('\n') + "\n\n"
+      : "";
 
-    // Add the current prompt
-    formattedContents.push({
-      role: 'user',
-      parts: [{ text: prompt }]
-    });
-
-    const response = await ai.models.generateContent({
-      model: this.modelName,
-      contents: formattedContents,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            narrative: { type: Type.STRING },
-            tutorNote: { type: Type.STRING },
-            isLevelComplete: { type: Type.BOOLEAN },
-            statsUpdate: {
-              type: Type.OBJECT,
-              properties: {
-                confidenceDelta: { type: Type.NUMBER },
-                newInventoryItem: { type: Type.STRING },
-                removedInventoryItem: { type: Type.STRING },
-                newLocation: { type: Type.STRING }
-              },
-              required: ["confidenceDelta"]
-            }
-          },
-          required: ["narrative", "tutorNote", "statsUpdate"]
-        }
-      }
-    });
+    const combinedPrompt = `${historyText}CURRENT CHALLENGE:\n${prompt}`;
 
     try {
-      return JSON.parse(response.text || '{}') as GameTurnResponse;
-    } catch (err) {
-      console.error("JSON Parse Error:", response.text);
-      throw new Error("Invalid AI response format");
+      const response = await ai.models.generateContent({
+        model: this.modelName,
+        contents: [{ role: 'user', parts: [{ text: combinedPrompt }] }],
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              narrative: { type: Type.STRING },
+              tutorNote: { type: Type.STRING },
+              isLevelComplete: { type: Type.BOOLEAN },
+              statsUpdate: {
+                type: Type.OBJECT,
+                properties: {
+                  confidenceDelta: { type: Type.NUMBER },
+                  newInventoryItem: { type: Type.STRING },
+                  removedInventoryItem: { type: Type.STRING },
+                  newLocation: { type: Type.STRING }
+                },
+                required: ["confidenceDelta"]
+              }
+            },
+            required: ["narrative", "tutorNote", "statsUpdate"]
+          }
+        }
+      });
+
+      const rawText = response.text || '';
+      const cleanedText = this.cleanJsonResponse(rawText);
+      return JSON.parse(cleanedText || '{}') as GameTurnResponse;
+    } catch (err: any) {
+      console.error("Gemini API Error:", err);
+      throw new Error(err.message || "Failed to communicate with Polyglot City core.");
     }
   }
 }
