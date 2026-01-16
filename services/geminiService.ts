@@ -8,7 +8,7 @@ export class GeminiService {
   private getAI(): GoogleGenAI {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      throw new Error("API_KEY is missing. Check your Vercel Environment Variables.");
+      throw new Error("API_KEY environment variable is not set. Please add it to your Vercel project settings.");
     }
     return new GoogleGenAI({ apiKey });
   }
@@ -18,9 +18,7 @@ export class GeminiService {
       const ai = this.getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
-        contents: [{
-          parts: [{ text: "A breathtaking, futuristic, cinematic metropolis called Polyglot City. The city is a masterpiece of global architectures—Victorian London bridges meeting neon-drenched futuristic Tokyo skyscrapers. Signs in multiple languages glow softly in the evening mist. Wide shot, ultra-detailed, vibrant lighting." }]
-        }]
+        contents: "A breathtaking, futuristic, cinematic metropolis called Polyglot City. Victorian London bridges meeting neon Tokyo skyscrapers. Signs in multiple languages glow softly. Wide shot, ultra-detailed, vibrant lighting."
       });
       
       const parts = response.candidates?.[0]?.content?.parts || [];
@@ -40,7 +38,7 @@ export class GeminiService {
       Start a new immersive English learning RPG in Polyglot City.
       Mode: ${mode}.
       Initial State: Level 1, Confidence 0%.
-      Objective: Provide an opening scenario where the player is an absolute beginner in this specific context. Describe the atmospheric surroundings vividly and present a clear initial challenge.
+      Return a JSON response with an opening scenario for an absolute beginner.
     `;
 
     return this.generateTurn(prompt, mode);
@@ -55,25 +53,22 @@ export class GeminiService {
     const prompt = `
       The player says: "${userInput}"
       
-      Current Game State:
-      Level: ${stats.level}
-      Confidence: ${stats.confidence}%
-      Inventory: ${stats.inventory.join(', ') || 'None'}
-      Location: ${stats.location}
-      Mode: ${mode}
-
-      Rules for Progression:
-      1. Confidence: Award small increments (+2 to +5) for good English. Deduct (-5 to -10) for significant mistakes.
-      2. Level Completion: Set "isLevelComplete" to true ONLY if confidence reaches 100% and the current task is fulfilled.
-      3. Feedback: Provide a detailed "Tutor Note" correcting grammar and register.
+      State: Level ${stats.level}, Confidence ${stats.confidence}%, Location ${stats.location}.
+      Inventory: ${stats.inventory.join(', ') || 'None'}.
+      
+      Process this turn and return the updated state in JSON.
     `;
 
     return this.generateTurn(prompt, mode, history);
   }
 
   private cleanJsonResponse(text: string): string {
-    // Remove markdown code blocks if the model included them
-    return text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+    // Aggressively clean markdown and whitespace
+    let cleaned = text.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    }
+    return cleaned;
   }
 
   private async generateTurn(
@@ -81,26 +76,24 @@ export class GeminiService {
     mode: GameMode,
     history: { role: string; content: string }[] = []
   ): Promise<GameTurnResponse> {
-    const systemInstruction = `
-      You are "Talk of the Town," a state-of-the-art English Immersion Game Engine.
-      Always respond in JSON. Ensure the "narrative" is descriptive.
-      The "tutorNote" should be linguistic feedback.
-    `;
-
     const ai = this.getAI();
 
-    // To prevent role-alternation errors (assistant must be model, must start with user),
-    // we consolidate history into the prompt text for a single-turn structured request.
+    const systemInstruction = `
+      You are "Talk of the Town," an English learning RPG engine.
+      YOU MUST ONLY RESPOND WITH RAW JSON. DO NOT WRAP IN MARKDOWN.
+      Schema: { "narrative": string, "tutorNote": string, "isLevelComplete": boolean, "statsUpdate": { "confidenceDelta": number, "newInventoryItem": string, "removedInventoryItem": string, "newLocation": string } }
+    `;
+
     const historyText = history.length > 0 
-      ? "CONVERSATION HISTORY:\n" + history.map(h => `${h.role === 'assistant' ? 'NPC' : 'Player'}: ${h.content}`).join('\n') + "\n\n"
+      ? "HISTORY:\n" + history.map(h => `${h.role}: ${h.content}`).join('\n') + "\n\n"
       : "";
 
-    const combinedPrompt = `${historyText}CURRENT CHALLENGE:\n${prompt}`;
+    const combinedPrompt = `${historyText}TASK:\n${prompt}`;
 
     try {
       const response = await ai.models.generateContent({
         model: this.modelName,
-        contents: [{ role: 'user', parts: [{ text: combinedPrompt }] }],
+        contents: combinedPrompt,
         config: {
           systemInstruction,
           responseMimeType: "application/json",
@@ -126,12 +119,13 @@ export class GeminiService {
         }
       });
 
-      const rawText = response.text || '';
-      const cleanedText = this.cleanJsonResponse(rawText);
-      return JSON.parse(cleanedText || '{}') as GameTurnResponse;
+      const text = response.text || '';
+      const cleaned = this.cleanJsonResponse(text);
+      return JSON.parse(cleaned) as GameTurnResponse;
     } catch (err: any) {
-      console.error("Gemini API Error:", err);
-      throw new Error(err.message || "Failed to communicate with Polyglot City core.");
+      console.error("Gemini Error:", err);
+      // Fallback object to prevent UI crash if API fails
+      throw new Error(err.message || "Failed to parse response from Polyglot City.");
     }
   }
 }
