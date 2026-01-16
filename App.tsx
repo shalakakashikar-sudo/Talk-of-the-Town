@@ -7,7 +7,7 @@ import TutorNote from './components/TutorNote';
 
 const INITIAL_STATS: GameStats = {
   mode: null,
-  confidence: 50,
+  confidence: 0, 
   inventory: [],
   location: 'City Entrance',
   level: 1,
@@ -61,7 +61,10 @@ const App: React.FC = () => {
 
   const updateStats = (update: any, levelCompleted: boolean = false) => {
     setStats(prev => {
-      const newConfidence = Math.max(0, Math.min(100, prev.confidence + (update.confidenceDelta || 0)));
+      const rawDelta = update.confidenceDelta || 0;
+      const dampedDelta = rawDelta > 0 ? Math.min(rawDelta, 6) : rawDelta;
+      
+      const newConfidence = Math.max(0, Math.min(100, prev.confidence + dampedDelta));
       const newInventory = [...prev.inventory];
       if (update.newInventoryItem) newInventory.push(update.newInventoryItem);
       if (update.removedInventoryItem) {
@@ -152,12 +155,12 @@ const App: React.FC = () => {
                 className="group relative bg-white/5 hover:bg-indigo-600/30 transition-all duration-500 p-8 rounded-[2rem] border border-white/10 text-left overflow-hidden hover:-translate-y-2 hover:border-indigo-400/50 hover:shadow-2xl"
               >
                 <div className="relative z-10">
-                  <h3 className="text-2xl font-black text-white mb-3 tracking-tight group-hover:text-indigo-200 transition-colors">{mode}</h3>
+                  <h3 className="text-2xl font-black text-white mb-3 tracking-tight group-hover:text-indigo-200 transition-colors uppercase italic">{mode}</h3>
                   <p className="text-sm text-gray-300 group-hover:text-white leading-relaxed font-medium">
-                    {mode === GameMode.TOURIST && "Essential survival. Order your first latte and find your way around the plaza."}
-                    {mode === GameMode.SOCIALITE && "Natural fluency. Master sarcasm, slang, and casual nightlife banter."}
-                    {mode === GameMode.PROFESSIONAL && "The corporate ladder. Pitch your vision and negotiate like a pro."}
-                    {mode === GameMode.CRISIS && "Total clarity. Handle medical emergencies and high-pressure calls."}
+                    {mode === GameMode.TOURIST && "Essential survival. From ordering coffee to finding the metro, every word counts."}
+                    {mode === GameMode.SOCIALITE && "Social mastery. Navigate parties, master sarcasm, and build connections."}
+                    {mode === GameMode.PROFESSIONAL && "High stakes. Deliver the pitch of your life and negotiate global contracts."}
+                    {mode === GameMode.CRISIS && "Absolute precision. Clear communication in life-or-death urban scenarios."}
                   </p>
                 </div>
               </button>
@@ -165,7 +168,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="mt-14 pt-10 border-t border-white/10 flex flex-col items-center">
-            <p className="text-xs text-indigo-400/80 font-black uppercase tracking-[0.3em] mb-6 animate-pulse">Choose your destiny</p>
+            <p className="text-xs text-indigo-400 font-bold uppercase tracking-[0.3em] mb-6">Choose your destiny</p>
             <div className="group relative">
                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
                <div className="relative text-xs text-gray-400 font-bold uppercase tracking-widest bg-black/60 px-8 py-3 rounded-full border border-white/10 flex items-center space-x-2">
@@ -185,7 +188,7 @@ const App: React.FC = () => {
 
       {showLevelUp && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-          <div className="bg-amber-500 text-gray-950 px-16 py-10 rounded-full font-black text-6xl shadow-[0_0_100px_rgba(245,158,11,0.7)] animate-bounce border-8 border-white">
+          <div className="bg-amber-500 text-gray-950 px-16 py-10 rounded-full font-black text-6xl shadow-[0_0_100px_rgba(245,158,11,0.7)] animate-bounce border-8 border-white uppercase italic">
             LEVEL UP! 🚀
           </div>
         </div>

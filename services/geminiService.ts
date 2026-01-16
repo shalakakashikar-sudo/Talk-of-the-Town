@@ -17,7 +17,7 @@ export class GeminiService {
       const response = await this.ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
-          parts: [{ text: "A breathtaking, futuristic metropolis called Polyglot City. The city is a blend of global architectures—European cobblestone streets meeting neon-lit Tokyo skyscrapers. Signs in dozens of different languages (English, Kanji, Arabic, etc.) glow softly against a twilight sky. Cinematic, wide shot, vibrant colors, digital painting style." }]
+          parts: [{ text: "A breathtaking, futuristic, cinematic metropolis called Polyglot City. The city is a masterpiece of global architectures—Victorian London bridges meeting neon-drenched futuristic Tokyo skyscrapers. Signs in multiple languages glow softly in the evening mist. Wide shot, ultra-detailed, vibrant lighting." }]
         }
       });
       for (const part of response.candidates[0].content.parts) {
@@ -33,11 +33,12 @@ export class GeminiService {
 
   async startNewGame(mode: GameMode): Promise<GameTurnResponse> {
     const prompt = `
-      Start a new immersive English learning RPG game in Polyglot City.
+      Start a new immersive English learning RPG in Polyglot City.
       Mode: ${mode}.
-      Objective: Provide an opening scenario (Level 1) relevant to this mode. Describe the environment and a challenge requiring user dialogue.
+      Initial State: Level 1, Confidence 0%.
+      Objective: Provide an opening scenario where the player is an absolute beginner in this specific context. Describe the atmospheric surroundings vividly and present a clear initial challenge.
       
-      Response must be in JSON format matching the schema provided.
+      Response must be in JSON format matching the schema.
     `;
 
     return this.generateTurn(prompt, mode);
@@ -55,16 +56,14 @@ export class GeminiService {
       Current Game State:
       Level: ${stats.level}
       Confidence: ${stats.confidence}%
-      Inventory: ${stats.inventory.join(', ') || 'Empty'}
+      Inventory: ${stats.inventory.join(', ') || 'None'}
       Location: ${stats.location}
       Mode: ${mode}
 
-      Rules:
-      1. Analyze the player's English (grammar, vocab, tone appropriateness for ${mode} at Level ${stats.level}).
-      2. If good, progress the story. If poor, create a misunderstanding.
-      3. CRITERIA FOR LEVEL COMPLETION: If the player has successfully resolved the current dialogue task (e.g. bought the item, finished the interview phase, or successfully handled the crisis moment) with a confidence level of 70% or higher, set "isLevelComplete" to true.
-      4. If "isLevelComplete" is true, describe the transition to a NEW, harder location for Level ${stats.level + 1}.
-      5. Provide a "Tutor Note" correcting mistakes.
+      Rules for Slower Progression:
+      1. Confidence Points: Award small increments (+2 to +5) for good English. Deduct (-5 to -10) for significant mistakes.
+      2. Level Completion: ONLY set "isLevelComplete" to true if the player has reached 100% confidence AND has completed at least 4-5 meaningful dialogue exchanges in the current scenario.
+      3. Feedback: Provide a detailed "Tutor Note" correcting grammar, word choice, and social appropriateness.
     `;
 
     return this.generateTurn(prompt, mode, history);
@@ -76,18 +75,17 @@ export class GeminiService {
     history: { role: string; content: string }[] = []
   ): Promise<GameTurnResponse> {
     const systemInstruction = `
-      You are "Talk of the Town," a world-class English RPG Game Engine.
-      Your tone adapts to the selected mode.
-      Level progression (1-5) increases complexity of vocabulary and sentence structure.
+      You are "Talk of the Town," a state-of-the-art English Immersion Game Engine.
+      Your goal is to guide the user to fluency through a deliberate, slow-burn RPG experience.
       
-      "isLevelComplete" should ONLY be true when a specific interaction is successfully finalized.
-      Always respond in the specified JSON schema.
+      Always respond in JSON. Ensure the "narrative" is descriptive and immersive.
+      The "tutorNote" should be a linguistic goldmine for the learner.
     `;
 
     const response = await this.ai.models.generateContent({
       model: this.modelName,
       contents: [
-        ...history.slice(-10).map(h => ({ parts: [{ text: h.content }] })),
+        ...history.slice(-12).map(h => ({ parts: [{ text: h.content }] })),
         { parts: [{ text: prompt }] }
       ],
       config: {
@@ -98,15 +96,15 @@ export class GeminiService {
           properties: {
             narrative: {
               type: Type.STRING,
-              description: "The NPC dialogue and descriptive narrative."
+              description: "The cinematic narrative and NPC dialogue."
             },
             tutorNote: {
               type: Type.STRING,
-              description: "English learning feedback and corrections."
+              description: "Grammar, vocabulary, and register feedback."
             },
             isLevelComplete: {
               type: Type.BOOLEAN,
-              description: "Whether the player has finished the current scenario's goal."
+              description: "Whether the player is ready for the next level."
             },
             statsUpdate: {
               type: Type.OBJECT,

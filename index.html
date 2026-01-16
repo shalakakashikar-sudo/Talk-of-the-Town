@@ -25,6 +25,20 @@
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
       }
+      /* Custom scrollbar for better aesthetics */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #030712;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1e1b4b;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #312e81;
+      }
     </style>
 <script type="importmap">
 {
@@ -39,5 +53,7 @@
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
     <div id="root"></div>
+    <!-- Explicitly import index.tsx to fix blank page issue on Vercel -->
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>
