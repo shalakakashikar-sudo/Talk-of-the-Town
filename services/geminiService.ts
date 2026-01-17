@@ -1,16 +1,24 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { GameMode, GameStats, GameTurnResponse } from "../types";
 
 export class GeminiService {
-  // Using gemini-3-pro-preview for high-quality RPG simulation and reasoning
+  // Use 'gemini-3-pro-preview' for advanced reasoning as per guidelines
   private modelName = 'gemini-3-pro-preview';
+  private imageModel = 'gemini-2.5-flash-image';
+
+  private getAI() {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.warn("API_KEY is missing from environment variables. Please ensure it is named 'API_KEY' exactly in your Vercel settings.");
+    }
+    return new GoogleGenAI({ apiKey: apiKey || "" });
+  }
 
   async generateCityImage(): Promise<string | null> {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = this.getAI();
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+        model: this.imageModel,
         contents: "A breathtaking, futuristic, cinematic metropolis called Polyglot City. Victorian London bridges meeting neon Tokyo skyscrapers. Signs in multiple languages glow softly. Wide shot, ultra-detailed, vibrant lighting."
       });
       
@@ -56,8 +64,8 @@ export class GeminiService {
 
       Progress Rules:
       - Award +3 to +7 Confidence for natural English.
-      - Deduct -5 for errors.
-      - set isLevelComplete to true only if they reach 100% confidence and finished the area task.
+      - Deduct -5 for significant errors.
+      - Set isLevelComplete to true only if they reach 100% confidence and finished the area task.
     `;
 
     return this.generateTurn(prompt, history);
@@ -71,15 +79,15 @@ export class GeminiService {
     prompt: string,
     history: { role: string; content: string }[] = []
   ): Promise<GameTurnResponse> {
-    // Re-initialize to ensure the latest API_KEY from the environment is used
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = this.getAI();
 
     const systemInstruction = `
       You are "Talk of the Town," a professional English Immersion Game Engine.
-      You MUST respond ONLY in the following JSON format:
+      Respond ONLY with a JSON object. No other text.
+      JSON Schema:
       {
-        "narrative": "the story text",
-        "tutorNote": "grammar feedback",
+        "narrative": "the story text and dialogue",
+        "tutorNote": "helpful linguistic feedback on the player's English usage",
         "isLevelComplete": boolean,
         "statsUpdate": {
           "confidenceDelta": number,
@@ -90,9 +98,8 @@ export class GeminiService {
       }
     `;
 
-    // Combine history into a single narrative context to prevent role-mismatch errors
     const historyBlock = history.length > 0 
-      ? "CONVERSATION SO FAR:\n" + history.map(h => `${h.role === 'assistant' ? 'NPC' : 'Player'}: ${h.content}`).join('\n') + "\n\n"
+      ? "CONVERSATION HISTORY:\n" + history.map(h => `${h.role === 'assistant' ? 'NPC' : 'Player'}: ${h.content}`).join('\n') + "\n\n"
       : "";
 
     const fullPrompt = `${historyBlock}TASK:\n${prompt}`;
@@ -130,7 +137,7 @@ export class GeminiService {
       return JSON.parse(this.cleanJsonResponse(text)) as GameTurnResponse;
     } catch (err: any) {
       console.error("Critical API Error:", err);
-      throw new Error("Polyglot City encountered a neural link error. Ensure your 'API_KEY' is set correctly in Vercel.");
+      throw new Error(`Polyglot City connection error: ${err.message || "Ensure your environment variable is named 'API_KEY'."}`);
     }
   }
 }
