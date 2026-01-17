@@ -3,15 +3,26 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { GameMode, GameStats, GameTurnResponse } from "../types";
 
 export class GeminiService {
-  // Use gemini-3-pro-preview for advanced reasoning and language feedback
+  // Guidelines: Use 'gemini-3-pro-preview' for complex reasoning and storytelling tasks
   private modelName = 'gemini-3-pro-preview';
   private imageModel = 'gemini-2.5-flash-image';
 
   private getAI() {
+    // In Vercel, the env var is accessed via process.env.API_KEY
+    // We check if it exists and provide a highly descriptive error for the specific Vercel workflow
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("API_KEY is not defined. Please ensure your environment variable is named exactly 'API_KEY' and contains a valid Google Gemini key (starts with AIza).");
+    
+    if (!apiKey || apiKey.trim() === "") {
+      throw new Error(
+        "Neural Link Offline: API_KEY is missing. " +
+        "If you just added it to Vercel, you MUST trigger a new 'Redeploy' for the changes to take effect."
+      );
     }
+
+    if (apiKey.startsWith('gsk_')) {
+      throw new Error("Neural Link Conflict: A Groq key was detected. This game requires a Google Gemini key (starting with 'AIza').");
+    }
+
     return new GoogleGenAI({ apiKey });
   }
 
@@ -20,7 +31,7 @@ export class GeminiService {
       const ai = this.getAI();
       const response = await ai.models.generateContent({
         model: this.imageModel,
-        contents: "Cinematic ultra-realistic view of Polyglot City, a neon-lit futuristic metropolis blending Tokyo, London, and New York. Digital billboards in multiple languages. Cyberpunk aesthetic, 8k, rainy street reflections, volumetric lighting."
+        contents: "Cinematic 8k wide shot of Polyglot City, a sprawling futuristic metropolis. Neon billboards in various languages. Fusion of London and Tokyo architecture. Deep blue and neon magenta lighting."
       });
       
       const parts = response.candidates?.[0]?.content?.parts || [];
@@ -30,13 +41,13 @@ export class GeminiService {
         }
       }
     } catch (e) {
-      console.error("Visual engine error:", e);
+      console.warn("Visual generator failed:", e);
     }
     return null;
   }
 
   async startNewGame(mode: GameMode): Promise<GameTurnResponse> {
-    const prompt = `INITIALIZE NEW RPG SESSION. Setting: Polyglot City. Player Role: ${mode}. Goal: Welcome the player and start the story with an NPC interaction.`;
+    const prompt = `INITIALIZE RPG SESSION. Mode: ${mode}. Set the scene in Polyglot City and introduce an NPC with a question or task for the player.`;
     return this.generateTurn(prompt);
   }
 
@@ -47,15 +58,13 @@ export class GeminiService {
     userInput: string
   ): Promise<GameTurnResponse> {
     const prompt = `
-      PLAYER INPUT: "${userInput}"
-      CURRENT STATS: Level ${stats.level}, Confidence ${stats.confidence}%, Location: ${stats.location}.
-      GAME MODE: ${mode}.
+      USER INPUT: "${userInput}"
+      PLAYER STATE: Level ${stats.level}, Confidence ${stats.confidence}%, Mode: ${mode}.
       
-      RULES:
-      1. Provide a narrative response.
-      2. Provide linguistic feedback (tutorNote).
-      3. Increase confidence by 3-7% for good English.
-      4. If user English is poor, explain why in tutorNote and NPC may react with confusion.
+      TASKS:
+      1. React to the player's input naturally within the story.
+      2. Analyze their English grammar/fluency and provide constructive feedback in tutorNote.
+      3. Update confidence (+/- 5%) based on language quality.
     `;
     return this.generateTurn(prompt, history);
   }
@@ -67,12 +76,13 @@ export class GeminiService {
     const ai = this.getAI();
 
     const systemInstruction = `
-      You are the "Talk of the Town" Game Engine. You simulate a high-fidelity English learning RPG.
-      Respond ONLY with a valid JSON object.
-      Schema:
+      You are the "Talk of the Town" Simulation Engine. You facilitate high-immersion English language learning RPGs.
+      Always respond in strict JSON format.
+      
+      JSON SCHEMA:
       {
-        "narrative": "Story text and NPC dialogue",
-        "tutorNote": "Linguistic feedback or grammar tips",
+        "narrative": "Cinematic story text including NPC dialogue",
+        "tutorNote": "Expert linguistic feedback: correct mistakes, suggest better idioms, or praise natural phrasing.",
         "isLevelComplete": boolean,
         "statsUpdate": {
           "confidenceDelta": number,
@@ -118,15 +128,12 @@ export class GeminiService {
         }
       });
 
-      const text = response.text || '';
+      const text = response.text || "{}";
       return JSON.parse(text) as GameTurnResponse;
     } catch (err: any) {
-      console.error("Neural Link Failure:", err);
-      // More descriptive error for the UI
-      if (err.message?.includes("API_KEY") || err.message?.includes("401") || err.message?.includes("403")) {
-        throw new Error("Neural link authentication failed. Please ensure you are using a valid Google Gemini API Key (starts with AIza). Groq keys are not compatible with this SDK.");
-      }
-      throw new Error("The city's mainframe is unresponsive. Please try your request again.");
+      console.error("Neural Link Error:", err);
+      if (err.message?.includes("API_KEY")) throw err;
+      throw new Error("Communication relay failure. The city's neural net is unstable. Please try again.");
     }
   }
 }
