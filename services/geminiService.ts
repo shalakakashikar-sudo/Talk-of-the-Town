@@ -1,17 +1,18 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { GameMode, GameStats, GameTurnResponse } from "../types";
 
 export class GeminiService {
-  // Use 'gemini-3-pro-preview' for advanced reasoning as per guidelines
+  // Use gemini-3-pro-preview for advanced reasoning and language feedback
   private modelName = 'gemini-3-pro-preview';
   private imageModel = 'gemini-2.5-flash-image';
 
   private getAI() {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      console.warn("API_KEY is missing from environment variables. Please ensure it is named 'API_KEY' exactly in your Vercel settings.");
+      throw new Error("API_KEY is not defined. Please ensure your environment variable is named exactly 'API_KEY' and contains a valid Google Gemini key (starts with AIza).");
     }
-    return new GoogleGenAI({ apiKey: apiKey || "" });
+    return new GoogleGenAI({ apiKey });
   }
 
   async generateCityImage(): Promise<string | null> {
@@ -19,7 +20,7 @@ export class GeminiService {
       const ai = this.getAI();
       const response = await ai.models.generateContent({
         model: this.imageModel,
-        contents: "A breathtaking, futuristic, cinematic metropolis called Polyglot City. Victorian London bridges meeting neon Tokyo skyscrapers. Signs in multiple languages glow softly. Wide shot, ultra-detailed, vibrant lighting."
+        contents: "Cinematic ultra-realistic view of Polyglot City, a neon-lit futuristic metropolis blending Tokyo, London, and New York. Digital billboards in multiple languages. Cyberpunk aesthetic, 8k, rainy street reflections, volumetric lighting."
       });
       
       const parts = response.candidates?.[0]?.content?.parts || [];
@@ -29,20 +30,13 @@ export class GeminiService {
         }
       }
     } catch (e) {
-      console.error("City image generation failed", e);
+      console.error("Visual engine error:", e);
     }
     return null;
   }
 
   async startNewGame(mode: GameMode): Promise<GameTurnResponse> {
-    const prompt = `
-      Start a new immersive English learning RPG in Polyglot City.
-      Mode: ${mode}.
-      Initial State: Level 1, Confidence 0%.
-      Provide an opening scenario where the player is an absolute beginner in this context. 
-      Set the scene vividly.
-    `;
-
+    const prompt = `INITIALIZE NEW RPG SESSION. Setting: Polyglot City. Player Role: ${mode}. Goal: Welcome the player and start the story with an NPC interaction.`;
     return this.generateTurn(prompt);
   }
 
@@ -53,26 +47,17 @@ export class GeminiService {
     userInput: string
   ): Promise<GameTurnResponse> {
     const prompt = `
-      The player says: "${userInput}"
+      PLAYER INPUT: "${userInput}"
+      CURRENT STATS: Level ${stats.level}, Confidence ${stats.confidence}%, Location: ${stats.location}.
+      GAME MODE: ${mode}.
       
-      Game State:
-      Level: ${stats.level}
-      Confidence: ${stats.confidence}%
-      Inventory: ${stats.inventory.join(', ') || 'None'}
-      Location: ${stats.location}
-      Mode: ${mode}
-
-      Progress Rules:
-      - Award +3 to +7 Confidence for natural English.
-      - Deduct -5 for significant errors.
-      - Set isLevelComplete to true only if they reach 100% confidence and finished the area task.
+      RULES:
+      1. Provide a narrative response.
+      2. Provide linguistic feedback (tutorNote).
+      3. Increase confidence by 3-7% for good English.
+      4. If user English is poor, explain why in tutorNote and NPC may react with confusion.
     `;
-
     return this.generateTurn(prompt, history);
-  }
-
-  private cleanJsonResponse(text: string): string {
-    return text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
   }
 
   private async generateTurn(
@@ -82,32 +67,32 @@ export class GeminiService {
     const ai = this.getAI();
 
     const systemInstruction = `
-      You are "Talk of the Town," a professional English Immersion Game Engine.
-      Respond ONLY with a JSON object. No other text.
-      JSON Schema:
+      You are the "Talk of the Town" Game Engine. You simulate a high-fidelity English learning RPG.
+      Respond ONLY with a valid JSON object.
+      Schema:
       {
-        "narrative": "the story text and dialogue",
-        "tutorNote": "helpful linguistic feedback on the player's English usage",
+        "narrative": "Story text and NPC dialogue",
+        "tutorNote": "Linguistic feedback or grammar tips",
         "isLevelComplete": boolean,
         "statsUpdate": {
           "confidenceDelta": number,
-          "newInventoryItem": "optional string",
-          "removedInventoryItem": "optional string",
-          "newLocation": "optional string"
+          "newInventoryItem": "string | null",
+          "removedInventoryItem": "string | null",
+          "newLocation": "string | null"
         }
       }
     `;
 
-    const historyBlock = history.length > 0 
-      ? "CONVERSATION HISTORY:\n" + history.map(h => `${h.role === 'assistant' ? 'NPC' : 'Player'}: ${h.content}`).join('\n') + "\n\n"
-      : "";
-
-    const fullPrompt = `${historyBlock}TASK:\n${prompt}`;
+    const contents = history.map(h => ({
+      role: h.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: h.content }]
+    }));
+    contents.push({ role: 'user', parts: [{ text: prompt }] });
 
     try {
       const response = await ai.models.generateContent({
         model: this.modelName,
-        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+        contents: contents as any,
         config: {
           systemInstruction,
           responseMimeType: "application/json",
@@ -134,10 +119,14 @@ export class GeminiService {
       });
 
       const text = response.text || '';
-      return JSON.parse(this.cleanJsonResponse(text)) as GameTurnResponse;
+      return JSON.parse(text) as GameTurnResponse;
     } catch (err: any) {
-      console.error("Critical API Error:", err);
-      throw new Error(`Polyglot City connection error: ${err.message || "Ensure your environment variable is named 'API_KEY'."}`);
+      console.error("Neural Link Failure:", err);
+      // More descriptive error for the UI
+      if (err.message?.includes("API_KEY") || err.message?.includes("401") || err.message?.includes("403")) {
+        throw new Error("Neural link authentication failed. Please ensure you are using a valid Google Gemini API Key (starts with AIza). Groq keys are not compatible with this SDK.");
+      }
+      throw new Error("The city's mainframe is unresponsive. Please try your request again.");
     }
   }
 }

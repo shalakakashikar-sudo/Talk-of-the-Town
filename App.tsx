@@ -56,7 +56,8 @@ const App: React.FC = () => {
       updateStats(startData.statsUpdate, false);
     } catch (err: any) {
       console.error("Failed to start game:", err);
-      setError(err.message || "Could not connect to the city. Please try again.");
+      setError(err.message || "Connection failure. Check your API configuration.");
+      setStats({ ...INITIAL_STATS }); // Reset back to menu
     } finally {
       setIsTyping(false);
     }
@@ -65,9 +66,7 @@ const App: React.FC = () => {
   const updateStats = (update: any, levelCompleted: boolean = false) => {
     setStats(prev => {
       const rawDelta = update.confidenceDelta || 0;
-      const dampedDelta = rawDelta > 0 ? Math.min(rawDelta, 6) : rawDelta;
-      
-      const newConfidence = Math.max(0, Math.min(100, prev.confidence + dampedDelta));
+      const newConfidence = Math.max(0, Math.min(100, prev.confidence + rawDelta));
       const newInventory = [...prev.inventory];
       if (update.newInventoryItem) newInventory.push(update.newInventoryItem);
       if (update.removedInventoryItem) {
@@ -120,8 +119,7 @@ const App: React.FC = () => {
       }]);
       updateStats(response.statsUpdate, response.isLevelComplete);
     } catch (err: any) {
-      console.error("Turn processing failed:", err);
-      setError(err.message || "Something went wrong in the city. Try again.");
+      setError(err.message || "Transmission interrupted.");
     } finally {
       setIsTyping(false);
     }
@@ -130,18 +128,13 @@ const App: React.FC = () => {
   if (!stats.mode) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gray-950">
-        {cityImageUrl ? (
+        {cityImageUrl && (
           <div 
-            className="absolute inset-0 bg-cover bg-center animate-fade-in opacity-40 transition-opacity duration-1000"
+            className="absolute inset-0 bg-cover bg-center animate-fade-in opacity-30 transition-opacity duration-1000"
             style={{ backgroundImage: `url(${cityImageUrl})` }}
           />
-        ) : (
-          <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
-            {isLoadingImage && <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>}
-          </div>
         )}
-        
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-950/20 via-gray-950/70 to-gray-950"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-950/40 via-gray-950/80 to-gray-950"></div>
 
         <div className="max-w-4xl w-full glass rounded-[3rem] shadow-2xl p-8 md:p-14 border border-white/10 text-center relative z-10 animate-fade-in">
           <div className="mb-14">
@@ -149,7 +142,7 @@ const App: React.FC = () => {
               Talk of the <span className="text-indigo-400">Town</span>
             </h1>
             <p className="text-indigo-100 text-lg md:text-xl font-light tracking-wide max-w-2xl mx-auto opacity-90">
-              Your immersive English journey starts in Polyglot City.
+              The premier immersive simulator for mastering the English language.
             </p>
           </div>
           
@@ -158,15 +151,15 @@ const App: React.FC = () => {
               <button
                 key={mode}
                 onClick={() => selectMode(mode)}
-                className="group relative bg-white/5 hover:bg-indigo-600/30 transition-all duration-500 p-8 rounded-[2rem] border border-white/10 text-left overflow-hidden hover:-translate-y-2 hover:border-indigo-400/50 hover:shadow-2xl"
+                className="group relative bg-white/5 hover:bg-indigo-600/30 transition-all duration-500 p-8 rounded-[2.5rem] border border-white/10 text-left overflow-hidden hover:-translate-y-1"
               >
                 <div className="relative z-10">
-                  <h3 className="text-2xl font-black text-white mb-3 tracking-tight group-hover:text-indigo-200 transition-colors uppercase italic">{mode}</h3>
-                  <p className="text-sm text-gray-300 group-hover:text-white leading-relaxed font-medium">
-                    {mode === GameMode.TOURIST && "Essential survival. From ordering coffee to finding the metro, every word counts."}
-                    {mode === GameMode.SOCIALITE && "Social mastery. Navigate parties, master sarcasm, and build connections."}
-                    {mode === GameMode.PROFESSIONAL && "High stakes. Deliver the pitch of your life and negotiate global contracts."}
-                    {mode === GameMode.CRISIS && "Absolute precision. Clear communication in life-or-death urban scenarios."}
+                  <h3 className="text-2xl font-black text-white mb-2 tracking-tight group-hover:text-indigo-200 transition-colors uppercase italic">{mode}</h3>
+                  <p className="text-sm text-gray-400 group-hover:text-gray-200 transition-colors font-medium">
+                    {mode === GameMode.TOURIST && "Survival English. Navigate the city and meet basic needs."}
+                    {mode === GameMode.SOCIALITE && "Casual fluency. Handle small talk and social dynamics."}
+                    {mode === GameMode.PROFESSIONAL && "Business mastery. Negotiate and present with authority."}
+                    {mode === GameMode.CRISIS && "Extreme precision. Communicate effectively under heavy pressure."}
                   </p>
                 </div>
               </button>
@@ -174,39 +167,33 @@ const App: React.FC = () => {
           </div>
 
           {error && (
-            <div className="mt-8 p-4 bg-rose-950/50 border border-rose-500/30 rounded-xl text-rose-300 text-sm animate-fade-in">
+            <div className="mt-8 p-6 bg-rose-950/40 border border-rose-500/30 rounded-2xl text-rose-200 text-sm animate-fade-in">
+              <div className="flex items-center justify-center space-x-2 mb-2">
+                <svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <span className="font-bold uppercase tracking-widest text-[10px]">Neural Link Error</span>
+              </div>
               {error}
+              <p className="mt-4 text-[10px] opacity-60 uppercase font-black tracking-tighter">Please refresh and update your environment variables.</p>
             </div>
           )}
-
-          <div className="mt-14 pt-10 border-t border-white/10 flex flex-col items-center">
-            <p className="text-xs text-indigo-400 font-bold uppercase tracking-[0.3em] mb-6">Choose your destiny</p>
-            <div className="group relative">
-               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-               <div className="relative text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest bg-black/60 px-8 py-3 rounded-full border border-white/10 flex items-center space-x-2">
-                 <span>Created by</span>
-                 <span className="text-white font-black">Shalaka Kashikar</span>
-               </div>
-            </div>
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-950 text-gray-100 font-sans antialiased">
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-950 text-gray-100">
       <StatBar stats={stats} onExit={exitToMenu} />
 
       {showLevelUp && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-          <div className="bg-amber-500 text-gray-950 px-12 py-8 rounded-full font-black text-4xl md:text-5xl shadow-[0_0_100px_rgba(245,158,11,0.7)] animate-bounce border-8 border-white uppercase italic">
+          <div className="bg-amber-500 text-gray-950 px-12 py-8 rounded-full font-black text-4xl shadow-[0_0_80px_rgba(245,158,11,0.5)] animate-bounce border-8 border-white uppercase italic">
             LEVEL UP! 🚀
           </div>
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-12 scroll-smooth bg-[radial-gradient(circle_at_top,rgba(30,30,80,0.2)_0%,rgba(10,10,15,1)_70%)]">
+      <main className="flex-1 overflow-y-auto p-4 md:p-12 scroll-smooth bg-[radial-gradient(circle_at_top,rgba(30,30,80,0.15)_0%,rgba(10,10,15,1)_80%)]">
         <div className="max-w-4xl mx-auto space-y-12 pb-12">
           {messages.map((msg, index) => (
             <div 
@@ -214,13 +201,13 @@ const App: React.FC = () => {
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start animate-fade-in'}`}
             >
               <div 
-                className={`max-w-[92%] md:max-w-[85%] rounded-[2.5rem] p-6 md:p-10 shadow-2xl transition-all ${
+                className={`max-w-[90%] md:max-w-[85%] rounded-[2.5rem] p-6 md:p-10 shadow-2xl transition-all ${
                   msg.role === 'user' 
-                    ? 'bg-indigo-600 text-white rounded-tr-none border-b-[8px] border-indigo-800' 
-                    : 'bg-gray-800/60 glass text-gray-100 border border-white/5 rounded-tl-none border-b-[8px] border-gray-900/50'
+                    ? 'bg-indigo-600 text-white rounded-tr-none border-b-8 border-indigo-800' 
+                    : 'bg-gray-800/50 glass text-gray-100 border border-white/5 rounded-tl-none border-b-8 border-gray-950'
                 }`}
               >
-                <div className="prose prose-invert max-w-none whitespace-pre-wrap leading-relaxed text-base md:text-xl font-medium tracking-tight">
+                <div className="prose prose-invert max-w-none whitespace-pre-wrap leading-relaxed text-base md:text-lg font-medium tracking-tight">
                   {msg.content}
                 </div>
                 {msg.tutorNote && <TutorNote note={msg.tutorNote} />}
@@ -229,58 +216,40 @@ const App: React.FC = () => {
           ))}
           
           {isTyping && (
-            <div className="flex items-center space-x-4 text-indigo-400 bg-indigo-950/30 px-6 py-3 rounded-full w-fit border border-indigo-500/20 shadow-xl backdrop-blur-sm">
-              <div className="flex space-x-2">
-                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
-                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }}></div>
-              </div>
-              <span className="text-xs font-black uppercase tracking-[0.3em]">Processing Response</span>
+            <div className="flex items-center space-x-3 text-indigo-400 bg-indigo-950/20 px-6 py-3 rounded-full w-fit border border-indigo-500/20 shadow-xl backdrop-blur-sm animate-pulse">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em]">Connecting to City Central...</span>
             </div>
           )}
 
           {error && (
-            <div className="bg-rose-950/30 border border-rose-500/20 p-6 rounded-2xl text-rose-300 text-sm flex items-center space-x-4 animate-fade-in">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+            <div className="bg-rose-950/20 border border-rose-500/20 p-6 rounded-2xl text-rose-300 text-sm flex items-center space-x-4 animate-fade-in">
               <span>{error}</span>
             </div>
           )}
-          
           <div ref={messagesEndRef} />
         </div>
       </main>
 
-      <footer className="bg-gray-950 border-t border-white/5 p-4 md:p-8 relative z-20 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+      <footer className="bg-gray-950 border-t border-white/5 p-4 md:p-8 relative z-20 shadow-2xl">
         <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-5">
+          <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4">
             <input
               type="text"
               autoFocus
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Type your dialogue..."
-              className="flex-1 bg-gray-900/80 border-2 border-white/10 rounded-[1.2rem] px-8 py-4 focus:outline-none focus:border-indigo-500 text-white text-xl transition-all placeholder-gray-700 font-medium"
+              placeholder="Speak with the locals..."
+              className="flex-1 bg-gray-900 border-2 border-white/5 rounded-2xl px-6 py-4 focus:outline-none focus:border-indigo-500 text-white text-lg transition-all placeholder-gray-700"
               disabled={isTyping}
             />
             <button
               type="submit"
               disabled={isTyping || !inputValue.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black py-4 px-12 rounded-[1.2rem] transition-all shadow-indigo-900/20 active:scale-95 uppercase tracking-tighter text-lg border-b-4 border-indigo-800"
+              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white font-black py-4 px-10 rounded-2xl transition-all uppercase tracking-widest text-sm border-b-4 border-indigo-800 active:translate-y-1 active:border-b-0"
             >
-              Speak
+              Send
             </button>
           </form>
-          <div className="mt-6 flex flex-wrap justify-between items-center gap-4 px-4">
-             <div className="flex items-center space-x-5 text-[10px] text-gray-500 uppercase font-black tracking-[0.2em]">
-                <span className="bg-gray-900 px-3 py-1 rounded border border-white/5 shadow-sm">Level {stats.level} Challenge</span>
-                <span className="opacity-40 hidden sm:block">Press Enter to Communicate</span>
-             </div>
-             <div className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] opacity-80 group">
-                Created by <span className="text-gray-300 group-hover:text-indigo-400 transition-colors">Shalaka Kashikar</span>
-             </div>
-          </div>
         </div>
       </footer>
     </div>
